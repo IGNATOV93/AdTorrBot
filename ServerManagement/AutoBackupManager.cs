@@ -131,7 +131,7 @@ namespace AdTorrBot.ServerManagement
 
             Console.WriteLine(success ? $"🎉 Архив успешно создан: {DefaultArchivePath}" : "❌ Архивирование завершилось с ошибками!");
             await Torrserver.ControlTorrserver(true);
-            Console.WriteLine("🚀 Torrserver успешно запущен!");
+            Console.WriteLine("🚀 Torrserver успешно запустился");
 
             return success;
         }

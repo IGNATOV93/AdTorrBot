@@ -161,7 +161,7 @@ namespace AdTorrBotTorrserverBot
         private async Task RunTorrserverTask()
         {
             await Torrserver.Torrserver.RebootingTorrserver();
-            await BotTelegram.TelegramBot.SendMessageToAdmin("✅ Torrserver успешно перезапущен!");
+            await BotTelegram.TelegramBot.SendMessageToAdmin("✅ Torrserver успешно перезагружен!");
         }
 
         private async Task<bool> GetTorrserverAutoRunSettingAsync()

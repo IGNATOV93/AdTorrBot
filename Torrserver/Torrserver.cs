@@ -178,7 +178,7 @@ namespace AdTorrBotTorrserverBot.Torrserver
 
             if (enable)
             {
-                Console.WriteLine("🚀 Torrserver запущен! Обновляем профили...");
+                Console.WriteLine("🚀 Torrserver запустился! Обновляем профили...");
                 await Task.Delay(1000);
                 await UpdateAllProfilesFromConfig();
             }
@@ -233,7 +233,7 @@ namespace AdTorrBotTorrserverBot.Torrserver
             try
             {
                 Process.Start(startProcess);
-                Console.WriteLine("🚀 TorrServer успешно запущен через systemd!");
+                Console.WriteLine("🚀 TorrServer успешно запустился через systemd!");
 
                 await Task.Delay(1000);
                 await UpdateAllProfilesFromConfig();
