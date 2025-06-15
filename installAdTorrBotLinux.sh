@@ -137,11 +137,13 @@ fi
 echo "🔍 Сохраняем настройки в settings.json..."
 sudo tee /opt/AdTorrBot/settings.json > /dev/null <<EOF
 {
-    "telegram_token": "$TELEGRAM_TOKEN",
-    "telegram_chat_id": "$TELEGRAM_CHAT_ID"
+    "YourBotTelegramToken": "$TELEGRAM_TOKEN",
+    "AdminChatId": "$TELEGRAM_CHAT_ID",
+    "FilePathTorrserver": "/opt/torrserver/"
 }
 EOF
 echo "✅ Настройки сохранены!"
+
 
 # Создаем systemd-сервис для бота
 echo "🔍 Создаем службу AdTorrBot..."
