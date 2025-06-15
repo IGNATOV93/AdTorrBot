@@ -143,6 +143,8 @@ sudo tee /opt/AdTorrBot/settings.json > /dev/null <<EOF
 }
 EOF
 echo "✅ Настройки сохранены!"
+sudo chown adtorrbot:adtorrbot /opt/AdTorrBot/settings.json
+sudo chmod 644 /opt/AdTorrBot/settings.json
 
 
 # Создаем systemd-сервис для бота
