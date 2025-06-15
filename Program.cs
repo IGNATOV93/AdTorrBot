@@ -36,7 +36,6 @@ public class MainClass
         }
  
         await TelegramBot.StartBot();
-
-        Console.ReadLine();
+        await Task.Delay(-1);
     }
 }
