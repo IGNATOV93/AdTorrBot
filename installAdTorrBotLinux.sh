@@ -134,6 +134,14 @@ else
     echo "❌ Ошибка! Токен или Chat ID неверны!"
     exit 1
 fi
+echo "🔍 Сохраняем настройки в settings.json..."
+sudo tee /opt/AdTorrBot/settings.json > /dev/null <<EOF
+{
+    "telegram_token": "$TELEGRAM_TOKEN",
+    "telegram_chat_id": "$TELEGRAM_CHAT_ID"
+}
+EOF
+echo "✅ Настройки сохранены!"
 
 # Создаем systemd-сервис для бота
 echo "🔍 Создаем службу AdTorrBot..."
