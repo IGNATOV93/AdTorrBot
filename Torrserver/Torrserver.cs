@@ -197,7 +197,6 @@ namespace AdTorrBotTorrserverBot.Torrserver
             }
 
             Console.WriteLine($"✅ Сервис {serviceName} найден, выполняем перезагрузку...");
-
             var stopProcess = new ProcessStartInfo
             {
                 FileName = "systemctl",
@@ -232,11 +231,10 @@ namespace AdTorrBotTorrserverBot.Torrserver
 
             try
             {
-                Process.Start(startProcess);
-                Console.WriteLine("🚀 TorrServer успешно запустился через systemd!");
-
                 await Task.Delay(1000);
                 await UpdateAllProfilesFromConfig();
+                Process.Start(startProcess);
+                Console.WriteLine("🚀 TorrServer успешно запустился через systemd!"); 
             }
             catch (Exception ex)
             {
