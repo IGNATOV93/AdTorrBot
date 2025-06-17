@@ -232,17 +232,21 @@ update_bot() {
 
         echo "$LATEST_VERSION" | sudo tee /opt/AdTorrBot/version.txt > /dev/null
 
-        # ✅ Назначаем корректные права
-        echo "⚙️ Настраиваем права доступа..."
+        # ✅ Устанавливаем владельца всей папки и всех файлов
+        echo "⚙️ Обновляем права доступа..."
         sudo chown -R adtorrbot:adtorrbot "$BOT_DIR"
         sudo chmod -R 750 "$BOT_DIR"
-        
-        # ✅ Проверяем существование `settings.json`, прежде чем давать права
+
+        # ✅ Проверяем существование `settings.json` и базы данных перед установкой прав
         if [[ -f "$BOT_DIR/settings.json" ]]; then
             sudo chmod 644 "$BOT_DIR/settings.json"
         fi
 
-        # ✅ Даем права на исполнение боту
+        if [[ -f "$BOT_DIR/app.db" ]]; then
+            sudo chmod 644 "$BOT_DIR/app.db"
+        fi
+
+        # ✅ Даем права на выполнение для исполняемого файла
         sudo chmod +x "$BOT_DIR/AdTorrBot"
 
         # ✅ Очистка временной папки
@@ -255,6 +259,7 @@ update_bot() {
         exit 1
     fi
 }
+
 
 
 
