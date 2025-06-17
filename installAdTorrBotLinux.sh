@@ -223,26 +223,28 @@ update_bot() {
 
         # ✅ Перемещаем файлы из вложенной папки, если она есть
         if [[ -d "$TEMP_DIR/AdTorrBot" ]]; then
-            mv "$TEMP_DIR/AdTorrBot/"* "$BOT_DIR/"
+            mv "$TEMP_DIR/AdTorrBot/"* "$TEMP_DIR/"
             rm -rf "$TEMP_DIR/AdTorrBot"
         fi
 
         echo "🔄 Обновляем файлы без удаления `settings.json`..."
-        rsync -av --exclude="settings.json" "$BOT_DIR/" "$BOT_DIR/"
+        rsync -av --exclude="settings.json" "$TEMP_DIR/" "$BOT_DIR/"
 
         echo "$LATEST_VERSION" | sudo tee /opt/AdTorrBot/version.txt > /dev/null
 
-        # ✅ Устанавливаем владельца всей папки и всех файлов
+        # ✅ Назначаем владельца `adtorrbot` для всех файлов внутри папки
         echo "⚙️ Обновляем права доступа..."
         sudo chown -R adtorrbot:adtorrbot "$BOT_DIR"
         sudo chmod -R 750 "$BOT_DIR"
 
-        # ✅ Проверяем существование `settings.json` и базы данных перед установкой прав
+        # ✅ Проверяем существование `settings.json` перед изменением прав
         if [[ -f "$BOT_DIR/settings.json" ]]; then
+            sudo chown adtorrbot:adtorrbot "$BOT_DIR/settings.json"
             sudo chmod 644 "$BOT_DIR/settings.json"
         fi
 
         if [[ -f "$BOT_DIR/app.db" ]]; then
+            sudo chown adtorrbot:adtorrbot "$BOT_DIR/app.db"
             sudo chmod 644 "$BOT_DIR/app.db"
         fi
 
@@ -259,6 +261,7 @@ update_bot() {
         exit 1
     fi
 }
+
 
 
 
