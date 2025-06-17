@@ -221,19 +221,28 @@ update_bot() {
     if unrar x -o+ "$BOT_ARCHIVE" "$TEMP_DIR/"; then
         rm "$BOT_ARCHIVE"
 
+        # ✅ Перемещаем файлы из внутренней папки архива
+        if [[ -d "$TEMP_DIR/AdTorrBot" ]]; then
+            mv "$TEMP_DIR/AdTorrBot/"* "$TEMP_DIR/"
+            rm -rf "$TEMP_DIR/AdTorrBot"
+        fi
+
         echo "🔄 Обновляем файлы без удаления `settings.json`..."
         rsync -av --exclude="settings.json" "$TEMP_DIR/" "$BOT_DIR/"
 
         echo "$LATEST_VERSION" | sudo tee /opt/AdTorrBot/version.txt > /dev/null
 
-        # ✅ Добавляем права, как при установке
+        # ✅ Назначаем корректные права
         echo "⚙️ Настраиваем права доступа..."
         sudo chown -R adtorrbot:adtorrbot "$BOT_DIR"
         sudo chmod -R 750 "$BOT_DIR"
         sudo chmod 644 "$BOT_DIR/settings.json"
 
-        # ✅ Даем права на исполнение
+        # ✅ Даем права на исполнение боту
         sudo chmod +x "$BOT_DIR/AdTorrBot"
+
+        # ✅ Очистка временной папки
+        rm -rf "$TEMP_DIR"
 
         sudo systemctl start adtorrbot.service
         echo "✅ Обновление завершено!"
@@ -242,6 +251,7 @@ update_bot() {
         exit 1
     fi
 }
+
 
 
 
