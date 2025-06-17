@@ -171,7 +171,6 @@ download_bot() {
 update_bot() {
     echo "🔍 Проверяем наличие новой версии AdTorrBot..."
 
-    # Получаем последнюю версию с GitHub API
     LATEST_VERSION=$(curl -sL https://api.github.com/repos/IGNATOV93/AdTorrBot/releases/latest | jq -r '.tag_name')
     LOCAL_VERSION=$(cat /opt/AdTorrBot/version.txt 2>/dev/null || echo "unknown")
 
@@ -195,10 +194,13 @@ update_bot() {
     echo "🔄 Начинаем обновление..."
     
     BOT_DIR="/opt/AdTorrBot"
+    TEMP_DIR="/tmp/AdTorrBot_Update"
     BOT_ARCHIVE="/tmp/AdTorrBot-${LATEST_VERSION}-Linux64.rar"
     BOT_DOWNLOAD_URL="https://github.com/IGNATOV93/AdTorrBot/releases/download/$LATEST_VERSION/AdTorrBot-${LATEST_VERSION}-Linux64.rar"
 
     sudo systemctl stop adtorrbot.service
+    sudo systemctl disable adtorrbot.service  
+    sudo pkill -f "/opt/AdTorrBot/AdTorrBot"
 
     echo "🚀 Скачивание последней версии..."
     wget -q --show-progress -O "$BOT_ARCHIVE" "$BOT_DOWNLOAD_URL" || { echo "❌ Ошибка скачивания."; exit 1; }
@@ -208,21 +210,18 @@ update_bot() {
         exit 1
     fi
 
-    # Проверяем, установлен ли `unrar`
     if ! command -v unrar &> /dev/null; then
         echo "❌ Ошибка: пакет `unrar` не установлен! Устанавливаем..."
         sudo apt update && sudo apt install unrar -y
     fi
 
-    # Новая команда распаковки
-    echo "📂 Распаковка архива..."
-    if unrar x -o+ "$BOT_ARCHIVE" "$BOT_DIR/" > /dev/null 2>&1; then
+    echo "📂 Распаковка архива во временную папку..."
+    sudo mkdir -p "$TEMP_DIR"
+    if unrar x -o+ "$BOT_ARCHIVE" "$TEMP_DIR/"; then
         rm "$BOT_ARCHIVE"
 
-        # ✅ Обновляем права
-        sudo chown -R adtorrbot:adtorrbot "$BOT_DIR"
-        sudo chmod -R 750 "$BOT_DIR"
-        sudo chmod +x "$BOT_DIR/AdTorrBot"
+        echo "🔄 Обновляем файлы без удаления `settings.json`..."
+        rsync -av --exclude="settings.json" "$TEMP_DIR/" "$BOT_DIR/"
 
         echo "$LATEST_VERSION" | sudo tee /opt/AdTorrBot/version.txt > /dev/null
 
@@ -233,6 +232,7 @@ update_bot() {
         exit 1
     fi
 }
+
 
 
 
