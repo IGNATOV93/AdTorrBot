@@ -175,13 +175,11 @@ update_bot() {
     LATEST_VERSION=$(curl -sL https://api.github.com/repos/IGNATOV93/AdTorrBot/releases/latest | jq -r '.tag_name')
     LOCAL_VERSION=$(cat /opt/AdTorrBot/version.txt 2>/dev/null || echo "unknown")
 
-    # Проверяем, удалось ли получить актуальную версию
     if [[ -z "$LATEST_VERSION" || "$LATEST_VERSION" == "null" ]]; then
         echo "❌ Ошибка: невозможно получить версию AdTorrBot с GitHub!"
         exit 1
     fi
 
-    # Если бот уже обновлён — отменяем обновление
     if [[ "$LOCAL_VERSION" == "$LATEST_VERSION" ]]; then
         echo "✅ У вас уже установлена последняя версия ($LOCAL_VERSION)."
         exit 0
@@ -195,7 +193,7 @@ update_bot() {
     fi
 
     echo "🔄 Начинаем обновление..."
-
+    
     BOT_DIR="/opt/AdTorrBot"
     BOT_ARCHIVE="/tmp/AdTorrBot-${LATEST_VERSION}-Linux64.rar"
     BOT_DOWNLOAD_URL="https://github.com/IGNATOV93/AdTorrBot/releases/download/$LATEST_VERSION/AdTorrBot-${LATEST_VERSION}-Linux64.rar"
@@ -205,14 +203,20 @@ update_bot() {
     echo "🚀 Скачивание последней версии..."
     wget -q --show-progress -O "$BOT_ARCHIVE" "$BOT_DOWNLOAD_URL" || { echo "❌ Ошибка скачивания."; exit 1; }
 
-    # Проверяем, действительно ли скачался архив
     if [[ ! -f "$BOT_ARCHIVE" ]]; then
         echo "❌ Ошибка: файл обновления отсутствует!"
         exit 1
     fi
 
-    # Распаковываем обновление без замены `settings.json`
-    if unrar e -o- "$BOT_ARCHIVE" "$BOT_DIR" > /dev/null; then
+    # Проверяем, установлен ли `unrar`
+    if ! command -v unrar &> /dev/null; then
+        echo "❌ Ошибка: пакет `unrar` не установлен! Устанавливаем..."
+        sudo apt update && sudo apt install unrar -y
+    fi
+
+    # Новая команда распаковки
+    echo "📂 Распаковка архива..."
+    if unrar x -o+ "$BOT_ARCHIVE" "$BOT_DIR/" > /dev/null 2>&1; then
         rm "$BOT_ARCHIVE"
 
         # ✅ Обновляем права
@@ -222,15 +226,14 @@ update_bot() {
 
         echo "$LATEST_VERSION" | sudo tee /opt/AdTorrBot/version.txt > /dev/null
 
-        # ✅ Запускаем бот заново
         sudo systemctl start adtorrbot.service
-
         echo "✅ Обновление завершено!"
     else
         echo "❌ Ошибка распаковки архива."
         exit 1
     fi
 }
+
 
 
 
