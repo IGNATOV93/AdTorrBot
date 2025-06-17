@@ -168,6 +168,7 @@ download_bot() {
     fi
 }
 
+
 update_bot() {
     echo "🔍 Проверяем наличие новой версии AdTorrBot..."
 
@@ -225,6 +226,15 @@ update_bot() {
 
         echo "$LATEST_VERSION" | sudo tee /opt/AdTorrBot/version.txt > /dev/null
 
+        # ✅ Добавляем права, как при установке
+        echo "⚙️ Настраиваем права доступа..."
+        sudo chown -R adtorrbot:adtorrbot "$BOT_DIR"
+        sudo chmod -R 750 "$BOT_DIR"
+        sudo chmod 644 "$BOT_DIR/settings.json"
+
+        # ✅ Даем права на исполнение
+        sudo chmod +x "$BOT_DIR/AdTorrBot"
+
         sudo systemctl start adtorrbot.service
         echo "✅ Обновление завершено!"
     else
@@ -232,8 +242,6 @@ update_bot() {
         exit 1
     fi
 }
-
-
 
 
 
