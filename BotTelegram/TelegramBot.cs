@@ -29,7 +29,8 @@ namespace AdTorrBotTorrserverBot.BotTelegram
                 var InlineText = update?.CallbackQuery?.Data;
                 if (update?.CallbackQuery?.Data != null)
                 {
-                    if (ChatId != AdminChat && !MessageHandler.IsCallbackQueryCommandBot(InlineText)) { return; }
+                    if(ChatId != AdminChat){return; }
+                    if (!MessageHandler.IsCallbackQueryCommandBot(InlineText)) { return; }
                     await MessageHandler.HandleUpdate(update);
                     return;
 
@@ -37,6 +38,7 @@ namespace AdTorrBotTorrserverBot.BotTelegram
                 if (Message?.Text != null)
                 {
                     ChatId = Message.Chat.Id.ToString();
+                    if (ChatId != AdminChat) { return;}
                     var textInputFlags = await SqlMethods.GetTextInputFlag();
                     if (ChatId==AdminChat&&textInputFlags.CheckAllBooleanFlags()) 
                      {  

@@ -436,12 +436,12 @@ namespace AdTorrBot.BotTelegram
         public static InlineKeyboardMarkup GetRestartingMain()
         {
             var restartTorrServer = InlineKeyboardButton.WithCallbackData("🔄 Перезапуск Torrserver", "restart_torrserver");
-            var restartServer = InlineKeyboardButton.WithCallbackData("🔄 Перезапуск сервера", "restart_server");
+           // var restartServer = InlineKeyboardButton.WithCallbackData("🔄 Перезапуск сервера", "restart_server");
             var autoRestartTorrServerMain = InlineKeyboardButton.WithCallbackData("⚙ Настроить ⏳ Torrserver", "auto_restart_torrserver");
             var inlineRestartingMain = new InlineKeyboardMarkup(new[]
             {
-                 new[]{restartServer}
-                ,new[]{restartTorrServer}
+               //  new[]{restartServer}
+                 new[]{restartTorrServer}
                 ,new[]{autoRestartTorrServerMain}
                 ,new[]{buttonHideButtots}
 
