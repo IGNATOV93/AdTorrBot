@@ -322,7 +322,8 @@ namespace AdTorrBot.BotTelegram.Db
                 }
                 catch (Exception e)
                 {
-                   return false;
+                    Console.WriteLine($"Ошибка при отключении флагов: {e.Message}");
+                    return false;
                 }
                
             });

@@ -252,6 +252,7 @@ namespace AdTorrBot.BotTelegram.Handler
                 if (callbackData == "deletemessages")
                 {
                     await DeleteMessage(idMessage);
+                    await  SqlMethods.SwitchOffInputFlag();
                     return;
                 }
                 if (callbackData == "back_settings_main")
@@ -641,6 +642,7 @@ namespace AdTorrBot.BotTelegram.Handler
                 {
                     try
                     {
+                        await SqlMethods.SwitchOffInputFlag();
                         var (skipCount, sort) = ParsingMethods.ParseOtherProfilesCallback(callbackData);
                         var result = "Список профилей: ошибка обновления профилей";
                         var updateProfiles = await Torrserver.UpdateAllProfilesFromConfig();
