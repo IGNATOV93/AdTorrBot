@@ -167,8 +167,7 @@ download_bot() {
         exit 1
     fi
 }
-
-
+# Обновление бота
 update_bot() {
     echo "🔍 Проверяем наличие новой версии AdTorrBot..."
 
@@ -193,18 +192,20 @@ update_bot() {
     fi
 
     echo "🔄 Начинаем обновление..."
-    
+
     BOT_DIR="/opt/AdTorrBot"
     TEMP_DIR="/tmp/AdTorrBot_Update"
-    BOT_ARCHIVE="/tmp/AdTorrBot-${LATEST_VERSION}-Linux64.rar"
+    EXTRACT_DIR="$TEMP_DIR/extracted"
+    BOT_ARCHIVE="$TEMP_DIR/AdTorrBot-${LATEST_VERSION}-Linux64.rar"
     BOT_DOWNLOAD_URL="https://github.com/IGNATOV93/AdTorrBot/releases/download/$LATEST_VERSION/AdTorrBot-${LATEST_VERSION}-Linux64.rar"
 
     sudo systemctl stop adtorrbot.service
-    sudo systemctl disable adtorrbot.service  
-    sudo pkill -f "/opt/AdTorrBot/AdTorrBot"
+    sudo systemctl disable adtorrbot.service
+    sudo pkill -f "$BOT_DIR/AdTorrBot"
 
     echo "🚀 Скачивание последней версии..."
-    wget -q --show-progress -O "$BOT_ARCHIVE" "$BOT_DOWNLOAD_URL" || { echo "❌ Ошибка скачивания."; exit 1; }
+    mkdir -p "$TEMP_DIR"
+    wget -q -O "$BOT_ARCHIVE" "$BOT_DOWNLOAD_URL" || { echo "❌ Ошибка скачивания."; exit 1; }
 
     if [[ ! -f "$BOT_ARCHIVE" ]]; then
         echo "❌ Ошибка: файл обновления отсутствует!"
@@ -212,62 +213,47 @@ update_bot() {
     fi
 
     if ! command -v unrar &> /dev/null; then
-        echo "❌ Ошибка: пакет `unrar` не установлен! Устанавливаем..."
+        echo "📦 Устанавливаем unrar..."
         sudo apt update && sudo apt install unrar -y
     fi
 
     echo "📂 Распаковка архива во временную папку..."
-    sudo mkdir -p "$TEMP_DIR"
-    if unrar x -o+ "$BOT_ARCHIVE" "$TEMP_DIR/"; then
-        rm "$BOT_ARCHIVE"
+    mkdir -p "$EXTRACT_DIR"
+    if unrar x -o+ "$BOT_ARCHIVE" "$EXTRACT_DIR/" > /dev/null; then
+        rm -f "$BOT_ARCHIVE"
 
-        # ✅ Перемещаем файлы из вложенной папки, если она есть
-        if [[ -d "$TEMP_DIR/AdTorrBot" ]]; then
-            mv "$TEMP_DIR/AdTorrBot/"* "$TEMP_DIR/"
-            rm -rf "$TEMP_DIR/AdTorrBot"
+        if [[ -d "$EXTRACT_DIR/AdTorrBot" ]]; then
+            [[ -d "$EXTRACT_DIR/AdTorrBot/AdTorrBot" ]] && rm -rf "$EXTRACT_DIR/AdTorrBot/AdTorrBot"
+            find "$EXTRACT_DIR/AdTorrBot" -maxdepth 1 -type f ! -name "settings.json" -exec cp -t "$TEMP_DIR/" {} +
+            rm -rf "$EXTRACT_DIR/AdTorrBot"
         fi
 
-        echo "🔄 Обновляем файлы без удаления `settings.json`..."
-        rsync -av --exclude="settings.json" "$TEMP_DIR/" "$BOT_DIR/"
+        if [[ -d "$BOT_DIR/AdTorrBot" ]]; then
+            echo "🧨 Удаляем '$BOT_DIR/AdTorrBot' — остаток старой установки"
+            sudo rm -rf "$BOT_DIR/AdTorrBot"
+        fi
 
-        echo "$LATEST_VERSION" | sudo tee /opt/AdTorrBot/version.txt > /dev/null
+        echo "🔄 Обновляем файлы без удаления settings.json..."
+        rsync -a --exclude="settings.json" "$TEMP_DIR/" "$BOT_DIR/"
 
-        # ✅ Назначаем владельца `adtorrbot` для всех файлов внутри папки
-        echo "⚙️ Обновляем права доступа..."
+        echo "$LATEST_VERSION" | sudo tee "$BOT_DIR/version.txt" > /dev/null
+
+        echo "⚙️ Настраиваем права доступа..."
         sudo chown -R adtorrbot:adtorrbot "$BOT_DIR"
         sudo chmod -R 750 "$BOT_DIR"
+        [[ -f "$BOT_DIR/settings.json" ]] && sudo chmod 644 "$BOT_DIR/settings.json"
+        [[ -f "$BOT_DIR/app.db" ]] && sudo chmod 644 "$BOT_DIR/app.db"
+        [[ -f "$BOT_DIR/AdTorrBot" ]] && sudo chmod +x "$BOT_DIR/AdTorrBot"
 
-        # ✅ Проверяем существование `settings.json` перед изменением прав
-        if [[ -f "$BOT_DIR/settings.json" ]]; then
-            sudo chown adtorrbot:adtorrbot "$BOT_DIR/settings.json"
-            sudo chmod 644 "$BOT_DIR/settings.json"
-        fi
-
-        if [[ -f "$BOT_DIR/app.db" ]]; then
-            sudo chown adtorrbot:adtorrbot "$BOT_DIR/app.db"
-            sudo chmod 644 "$BOT_DIR/app.db"
-        fi
-
-        # ✅ Даем права на выполнение для исполняемого файла
-        sudo chmod +x "$BOT_DIR/AdTorrBot"
-
-        # ✅ Очистка временной папки
         rm -rf "$TEMP_DIR"
-
+        sudo systemctl enable adtorrbot.service
         sudo systemctl start adtorrbot.service
-        echo "✅ Обновление завершено!"
+        echo "✅ Обновление до $LATEST_VERSION завершено!"
     else
         echo "❌ Ошибка распаковки архива."
         exit 1
     fi
 }
-
-
-
-
-
-
-
 # Настройка systemd
 setup_systemd() {
     echo "🔍 Создаем службу AdTorrBot..."
