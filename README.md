@@ -68,6 +68,8 @@ chmod +x installAdTorrBotLinux.sh
 sudo ./installAdTorrBotLinux.sh
 ``` 
 
+💬 Обсуждение в Telegram: [https://t.me/adtorrbot24](https://t.me/adtorrbot24)  
+
 <details>
   <summary>⚠️ Важное замечание</summary>
 
