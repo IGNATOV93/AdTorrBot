@@ -375,20 +375,24 @@ namespace AdTorrBotTorrserverBot.Torrserver
         {
             try
             {
-                // Шаг 1: Получить все профили из базы данных
                 var allProfiles = await SqlMethods.GetAllProfilesNoSkip();
+                bool isDatabaseEmpty = allProfiles.Count == 0;
+
                 var activeProfiles = allProfiles.Where(profile => profile.IsEnabled).ToList();
                 var inactiveProfiles = allProfiles.Where(profile => !profile.IsEnabled).ToList();
-
-                // Шаг 2: Считать данные из конфигурационного файла
                 var profilesFromConfig = ReadProfilesFromConfig();
 
-                // Шаг 3: Удалить неактивные профили из конфигурационного файла
+                if (isDatabaseEmpty)
+                {
+                    await SqlMethods.UpdateOrAddProfilesAsync(profilesFromConfig);
+                    await SqlMethods.UpdateIsActiveProfiles();
+                    return true;
+                }
+
                 profilesFromConfig = profilesFromConfig
                     .Where(configProfile => !inactiveProfiles.Any(inactive => inactive.Login == configProfile.Login))
                     .ToList();
 
-                // Шаг 4: Добавить только активные профили в конфигурацию (если их там нет)
                 var uniqueLoginsConfig = new HashSet<string>(profilesFromConfig.Select(profile => profile.Login));
                 var profilesToAddToConfig = activeProfiles
                     .Where(activeProfile => !uniqueLoginsConfig.Contains(activeProfile.Login))
@@ -399,10 +403,8 @@ namespace AdTorrBotTorrserverBot.Torrserver
                     profilesFromConfig.AddRange(profilesToAddToConfig);
                 }
 
-                // Шаг 5: Записать обновлённые данные в конфигурационный файл
                 await WriteAllProfilesToConfig(profilesFromConfig);
 
-                // Шаг 6: Обновить базу данными из конфигурации (при необходимости)
                 var uniqueLoginsDb = new HashSet<string>(allProfiles.Select(profile => profile.Login));
                 var profilesToAddToDb = profilesFromConfig
                     .Where(configProfile => !uniqueLoginsDb.Contains(configProfile.Login))
@@ -412,8 +414,9 @@ namespace AdTorrBotTorrserverBot.Torrserver
                 {
                     await SqlMethods.UpdateOrAddProfilesAsync(profilesToAddToDb);
                 }
+
                 await SqlMethods.UpdateIsActiveProfiles();
-                return true; // Синхронизация успешно завершена
+                return true;
             }
             catch (Exception ex)
             {
@@ -421,6 +424,7 @@ namespace AdTorrBotTorrserverBot.Torrserver
                 return false;
             }
         }
+
 
 
 
