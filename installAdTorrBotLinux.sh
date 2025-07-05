@@ -37,16 +37,19 @@ check_torrserver() {
     echo "✅ TorrServer работает."
 }
 
-# Создание пользователя
 create_user() {
     if ! id "adtorrbot" &>/dev/null; then
         echo "🔍 Создаем пользователя 'adtorrbot'..."
-        sudo useradd -r -s /bin/false adtorrbot
+        sudo useradd -r -s /bin/bash adtorrbot
         echo "✅ Пользователь 'adtorrbot' создан."
     else
         echo "✅ Пользователь 'adtorrbot' уже существует."
     fi
+
+    # ⏩ Сразу настраиваем совместный доступ
+    configure_shared_access
 }
+
 
 # Настройка sudo привилегий
 configure_sudo() {
@@ -67,25 +70,85 @@ configure_sudo() {
     done
     echo "✅ Настройки sudo обновлены!"
 }
+configure_shared_access() {
+    echo "🔧 Настраиваем совместный доступ к /opt/torrserver..."
 
-# Настройка polkit
+    # Создаем группу, если её нет
+    if ! getent group torrgroup >/dev/null; then
+        sudo groupadd torrgroup
+        echo "✅ Группа 'torrgroup' создана."
+    else
+        echo "✅ Группа 'torrgroup' уже существует."
+    fi
+
+    # Добавляем torrserver и adtorrbot в общую группу
+    sudo usermod -aG torrgroup torrserver
+    sudo usermod -aG torrgroup adtorrbot
+
+    # Назначаем группу владельцем папки и выставляем права
+    if [ -d /opt/torrserver ]; then
+        sudo chown -R torrserver:torrgroup /opt/torrserver
+        sudo chmod -R 775 /opt/torrserver
+        echo "✅ Права на /opt/torrserver обновлены для группы."
+    else
+        echo "⚠️ Папка /opt/torrserver не найдена. Совместный доступ будет настроен после установки TorrServer."
+    fi
+}
+
 configure_polkit() {
-    echo "🔍 Настраиваем polkit..."
-    sudo tee /etc/polkit-1/localauthority/50-local.d/adtorrbot.pkla > /dev/null <<EOF
-[Allow AdTorrBot Full Systemctl Control]
+    echo "🔍 Определяем версию Ubuntu..."
+
+    UBUNTU_VERSION=$(lsb_release -rs | cut -d '.' -f1)
+
+    if [ "$UBUNTU_VERSION" -ge 24 ]; then
+        echo "🛡️ Ubuntu $UBUNTU_VERSION обнаружена — используем .rules (JS)..."
+
+        RULE_FILE="/etc/polkit-1/rules.d/99-torrserver-control.rules"
+
+        if [ -f "$RULE_FILE" ]; then
+            echo "✅ Правило уже существует: $RULE_FILE — пропускаем."
+        else
+            sudo tee "$RULE_FILE" > /dev/null <<EOF
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.systemd1.manage-units" &&
+        action.lookup("unit") == "torrserver.service" &&
+        subject.user == "adtorrbot") {
+        return polkit.Result.YES;
+    }
+});
+EOF
+            sudo systemctl restart polkit
+            echo "✅ Polkit настроен для Ubuntu 24+ (.rules)"
+        fi
+
+    else
+        echo "🛡️ Ubuntu $UBUNTU_VERSION обнаружена — используем .pkla..."
+
+        PKLA_FILE="/etc/polkit-1/localauthority/50-local.d/adtorrbot.pkla"
+
+        if [ -f "$PKLA_FILE" ]; then
+            echo "✅ Правило уже существует: $PKLA_FILE — пропускаем."
+        else
+            sudo tee "$PKLA_FILE" > /dev/null <<EOF
+[Allow AdTorrBot to control torrserver]
 Identity=unix-user:adtorrbot
 Action=org.freedesktop.systemd1.manage-units
 ResultActive=yes
 ResultInactive=yes
 ResultAny=yes
 EOF
-    echo "✅ Polkit настроен!"
+            echo "✅ Polkit настроен для Ubuntu 22 (.pkla)"
+        fi
+    fi
 }
 
-# Установка зависимостей
+
 install_dependencies() {
     echo "🔍 Проверяем и устанавливаем необходимые пакеты..."
-    for package in wget unrar jq dotnet-sdk-8.0; do
+
+    sudo apt update >/dev/null 2>&1
+
+    for package in wget unrar jq; do
         if ! dpkg -l | grep -q "$package"; then
             echo "➕ Устанавливаем $package..."
             sudo apt install -y $package >/dev/null 2>&1
@@ -93,8 +156,51 @@ install_dependencies() {
             echo "✅ $package уже установлен."
         fi
     done
-    echo "✅ Установка пакетов завершена!"
+
+    echo "📦 Устанавливаем .NET SDK 8.0 и Runtime..."
+
+    # Скачиваем и устанавливаем SDK и Runtime в /opt/dotnet
+    wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh >/dev/null 2>&1
+    chmod +x dotnet-install.sh
+    sudo mkdir -p /opt/dotnet
+    ./dotnet-install.sh --version 8.0.100 --install-dir /opt/dotnet >/dev/null 2>&1
+    ./dotnet-install.sh --runtime dotnet --version 8.0.15 --install-dir /opt/dotnet >/dev/null 2>&1
+
+    # Создаём ссылку для глобального доступа
+    sudo ln -sf /opt/dotnet/dotnet /usr/bin/dotnet
+
+    echo "⚙️ Прописываем окружение для пользователя adtorrbot..."
+    if [ -d /home/adtorrbot ]; then
+        sudo tee /home/adtorrbot/.profile >/dev/null <<EOF
+export DOTNET_ROOT=/opt/dotnet
+export PATH=\$PATH:/opt/dotnet
+EOF
+        sudo chown adtorrbot:adtorrbot /home/adtorrbot/.profile
+        echo "✅ Окружение .NET для adtorrbot настроено."
+    else
+        echo "⚠️ Папка /home/adtorrbot не найдена. Переменные окружения не добавлены."
+    fi
+
+    echo "🔍 Проверяем наличие dotnet и его версию..."
+
+    if command -v dotnet >/dev/null 2>&1; then
+        DOTNET_VERSION=$(dotnet --version)
+        DOTNET_MAJOR=$(echo "$DOTNET_VERSION" | cut -d '.' -f1)
+
+        if [ "$DOTNET_MAJOR" -ge 8 ]; then
+            echo "🎉 .NET SDK и Runtime установлены: версия $DOTNET_VERSION"
+        else
+            echo "❌ Обнаружена устаревшая версия .NET SDK ($DOTNET_VERSION). Требуется 8.0 или выше."
+            exit 1
+        fi
+    else
+        echo "❌ dotnet не установлен или не найден в PATH."
+        exit 1
+    fi
+
+    echo "✅ Установка зависимостей завершена!"
 }
+
 
 # Функция запроса Telegram API Token и Chat ID
 request_telegram_credentials() {
@@ -254,7 +360,6 @@ update_bot() {
         exit 1
     fi
 }
-# Настройка systemd
 setup_systemd() {
     echo "🔍 Создаем службу AdTorrBot..."
     sudo tee /etc/systemd/system/adtorrbot.service > /dev/null <<EOF
@@ -272,16 +377,22 @@ Restart=on-failure
 Type=simple
 KillSignal=SIGINT
 
+# ✅ Указываем путь к .NET для systemd
+Environment=DOTNET_ROOT=/opt/dotnet
+Environment=PATH=/opt/dotnet:/usr/bin:/bin
+
 [Install]
 WantedBy=multi-user.target
 EOF
 
+    sudo systemctl daemon-reexec
     sudo systemctl daemon-reload
     sudo systemctl enable adtorrbot.service
     sudo systemctl start adtorrbot.service
 
     echo "✅ Бот удачно запустился как служба!"
 }
+
 
 # Установка бота
 install_bot() {
