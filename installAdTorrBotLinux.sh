@@ -14,6 +14,7 @@ choose_action() {
     echo "2 Переустановить AdTorrBot(удалить + установить)"
     echo "3 Удалить AdTorrBot"
     echo "4 Обновить AdTorrBot"
+    echo "5 Проверить окружение (AdTorrBot/TorrServer)"
     echo "0 Выйти"
     echo ""
 
@@ -23,6 +24,7 @@ choose_action() {
         2) reinstall_bot ;;
         3) uninstall_bot ;;
         4) update_bot ;;
+        5) check_environment ;;
         0) echo "👋 Выход..."; exit 0 ;;
         *) echo "❌ Неверный ввод! Попробуйте снова."; choose_action ;;
     esac
@@ -436,5 +438,158 @@ uninstall_bot() {
     sudo rm -rf /opt/AdTorrBot
     echo "✅ AdTorrBot успешно удален!"
 }
+# функция проверки окружения бота и torrserver
+check_environment() {
+  echo "======================================"
+  echo "   Проверка окружения AdTorrBot/TorrServer"
+  echo "======================================"
+  echo ""
+
+  errors=() warnings=()
+
+  # Сервисы
+  echo "[Сервисы]"
+  systemctl is-active --quiet adtorrbot && echo "AdTorrBot: ✅ работает" || { echo "AdTorrBot: ❌ не запущен"; errors+=("Бот не запущен"); }
+  systemctl is-active --quiet torrserver && echo "TorrServer: ✅ работает" || { echo "TorrServer: ❌ не запущен"; errors+=("TorrServer не запущен"); }
+  echo ""
+
+  # Владельцы и группы
+  echo "[Владельцы и группы]"
+  if [ -d /opt/torrserver ]; then
+    cat_owner=$(stat -c "%U" /opt/torrserver)
+    cat_group=$(stat -c "%G" /opt/torrserver)
+    cat_perms=$(stat -c "%A" /opt/torrserver)
+    echo "📂 /opt/torrserver | владелец=$cat_owner | группа=$cat_group | права=$cat_perms"
+  else
+    echo "❌ Каталог /opt/torrserver отсутствует"
+    errors+=("Нет каталога /opt/torrserver")
+  fi
+
+  if [ -f /opt/torrserver/accs.db ]; then
+    db_owner=$(stat -c "%U" /opt/torrserver/accs.db)
+    db_group=$(stat -c "%G" /opt/torrserver/accs.db)
+    db_perms=$(stat -c "%A" /opt/torrserver/accs.db)
+    echo "📄 accs.db | владелец=$db_owner | группа=$db_group | права=$db_perms"
+  else
+    echo "⚠️ Файл accs.db отсутствует (создастся при первом запуске TorrServer)"
+    warnings+=("accs.db отсутствует (создастся при первом запуске)")
+  fi
+  echo ""
+
+  # Пользователи
+  echo "[Пользователи]"
+  ad_groups=$(id -nG adtorrbot 2>/dev/null)
+  ts_groups=$(id -nG torrserver 2>/dev/null)
+  echo "👤 adtorrbot | группы: ${ad_groups:-нет пользователя/групп}"
+  echo "👤 torrserver | группы: ${ts_groups:-нет пользователя/групп}"
+  echo ""
+
+  # Итог по правам для работы бота
+  echo "[Права для работы бота]"
+  rights_ok=true
+
+  if [ -d /opt/torrserver ]; then
+    sudo -u adtorrbot test -w /opt/torrserver || { rights_ok=false; errors+=("adtorrbot не может писать в /opt/torrserver"); }
+  fi
+
+  if [ -f /opt/torrserver/accs.db ]; then
+    sudo -u adtorrbot test -w /opt/torrserver/accs.db || { rights_ok=false; errors+=("adtorrbot не может изменять accs.db"); }
+  else
+    [ -d /opt/torrserver ] && sudo -u adtorrbot test -w /opt/torrserver || { rights_ok=false; errors+=("adtorrbot не может создать accs.db в /opt/torrserver"); }
+  fi
+
+  if $rights_ok; then
+    echo "✅ Права настроены корректно."
+  else
+    echo "❌ Права настроены некорректно — у бота нет достаточных прав."
+  fi
+  echo ""
+
+  # Сеть: TCP congestion control
+  echo "[Сеть: TCP congestion control]"
+  algo=$(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null)
+  if [ -n "$algo" ]; then
+    echo "📡 Алгоритм: $algo"
+    if [ "$algo" = "bbr" ]; then
+      echo "✅ BBR включён"
+    else
+      echo "⚠️ Используется $algo (не критично; для лучшей отдачи можно включить BBR)"
+      warnings+=("Используется $algo — не критично, но BBR обычно быстрее")
+    fi
+  else
+    echo "📡 Алгоритм: не удалось определить"
+    warnings+=("Не удалось определить алгоритм TCP congestion control")
+  fi
+  echo ""
+
+  # Доступ к Telegram API (c таймаутами)
+  echo "[Доступ к Telegram API]"
+  code4=$(curl -4 --max-time 5 -s -o /dev/null -w "%{http_code}" https://api.telegram.org || echo "000")
+  if [ "$code4" = "200" ] || [ "$code4" = "302" ]; then
+    echo "IPv4: ✅ доступен"
+  else
+    echo "IPv4: ❌ недоступен"
+    errors+=("Нет доступа к Telegram по IPv4")
+  fi
+
+  if ip -6 addr show | grep -q "inet6"; then
+    echo "🌐 IPv6 включён на сервере"
+    code6=$(curl -6 --max-time 5 -s -o /dev/null -w "%{http_code}" https://api.telegram.org || echo "000")
+    if [ "$code6" = "200" ] || [ "$code6" = "302" ]; then
+      echo "IPv6: ✅ доступен"
+    else
+      echo "IPv6: ⚠️ включён, но Telegram недоступен"
+      warnings+=("IPv6 включён, но Telegram недоступен — бот может падать; принудите IPv4 или отключите IPv6")
+    fi
+  else
+    echo "IPv6: ℹ️ не включён"
+  fi
+  echo ""
+
+  # AppArmor/SELinux
+  if command -v aa-status >/dev/null; then
+    echo "[AppArmor]"
+    if aa-status | grep -q "profiles are in enforce mode"; then
+      echo "⚠️ AppArmor активен"
+      warnings+=("AppArmor активен — может ограничивать доступ к /opt")
+    else
+      echo "✅ AppArmor не активен"
+    fi
+    echo ""
+  fi
+
+  if command -v getenforce >/dev/null; then
+    echo "[SELinux]"
+    sel=$(getenforce)
+    echo "SELinux: $sel"
+    [ "$sel" = "Enforcing" ] && warnings+=("SELinux Enforcing — возможны ограничения доступа")
+    echo ""
+  fi
+
+  # TorrServer процесс
+  echo "[Процесс TorrServer]"
+  systemctl is-active --quiet torrserver && echo "✅ TorrServer запущен через systemd" || { echo "❌ TorrServer не найден"; errors+=("Сервис torrserver не активен"); }
+  echo ""
+
+  # Сводка причин
+  echo "[Сводка]"
+  if [ ${#errors[@]} -eq 0 ]; then
+    echo "✅ Критических ошибок не найдено"
+  else
+    echo "❌ Критические проблемы:"
+    for e in "${errors[@]}"; do echo "   • $e"; done
+  fi
+
+  if [ ${#warnings[@]} -gt 0 ]; then
+    echo "⚠️ Предупреждения:"
+    for w in "${warnings[@]}"; do echo "   • $w"; done
+  fi
+
+  echo ""
+  echo "======================================"
+  echo "   Проверка завершена ✅"
+  echo "======================================"
+}
+
 # Запуск меню выбора действия
 choose_action
