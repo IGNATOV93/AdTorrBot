@@ -13,6 +13,7 @@ using AdTorrBot.BotTelegram.Db.Model;
 using AdTorrBot.ServerManagement;
 using AdTorrBotTorrserverBot.Torrserver.BitTor;
 using AdTorrBotTorrserverBot.Torrserver.ServerArgs;
+using Microsoft.EntityFrameworkCore;
 
 
 
@@ -99,16 +100,23 @@ namespace AdTorrBot.BotTelegram.Handler
                     var haveTime = "🕒 Осталось: Не задано или доступ истёк\r\n";
                     if (remainingTime.HasValue && remainingTime.Value.TotalMilliseconds > 0)
                     {
-                        haveTime= $"🕒 Осталось: {remainingTime.Value.Days} суток {remainingTime.Value.Hours} часов";
+                        haveTime= $"🕒 Осталось: {remainingTime.Value.Days} дн. {remainingTime.Value.Hours} ч.";
                     }
+
                    
-                  
+                    var сonfigArgs =await ServerArgsConfiguration.ReadConfigArgs();
+                    var (protocol, port) = ServerArgsConfiguration.GetProtocolAndPort(сonfigArgs);
+                    string ip = ServerControl.GetPublicIp();
+                    string url = $"{protocol}://{ip}:{port}";
+
                     var result = $"👤 Логин: {Profile.Login}\r\n" +
-                                 $"🗝️ Пароль: {Profile.Password}\r\n" +
+                                 $"🗝️ Пароль: {Profile.Password}\r\n\r\n" +
                                  $"⏳ Окончание доступа : {endTime}\r\n" +
-                                 $"{haveTime}"+
+                                 $"{haveTime}\r\n\r\n"+
                                  $"В формате логин:пароль\r\n\r\n" +
-                                 $"{Profile.Login}:{Profile.Password}"
+                                 $"{Profile.Login}:{Profile.Password}\r\n\r\n" +
+                                 $"Torrserver доступен по адресу:\r\n" +
+                                 $"{url}"
                                  ;
                     await DeleteMessage(idMessage);
                     await botClient.SendTextMessageAsync(AdminChat, result, replyMarkup: KeyboardManager.GetShowLogPassOther(result));
@@ -172,6 +180,15 @@ namespace AdTorrBot.BotTelegram.Handler
                     , replyMarkup: KeyboardManager.GetProfilesUsersTorrserver());
                 return;
 
+            }
+            if(text== "📊 Статус")
+            {
+                await DeleteMessage(idMessage);
+                var result = await ServerInfo.GetStatusAsync();
+                await botClient.SendTextMessageAsync(AdminChat,
+                   $"📊 Общий статус системы\r\n\r\n{result}");
+
+                return;
             }
                 if (text == "🔐 Доступ2")
             {
@@ -323,8 +340,14 @@ namespace AdTorrBot.BotTelegram.Handler
                 if (callbackData == "restart_server")
                 {
 
-                    await botClient.EditMessageTextAsync(AdminChat, idMessage, "Server будет перезагружен \u2705", replyMarkup: KeyboardManager.buttonHideButtots);
+                    await botClient.EditMessageTextAsync(AdminChat, idMessage, "Сервер(vps) будет перезагружен \u2705", replyMarkup: KeyboardManager.buttonHideButtots);
                     ServerControl.RebootServer();
+                    return;
+                }
+                if(callbackData== "restart_thisbot")
+                {
+                    await botClient.EditMessageTextAsync(AdminChat, idMessage, "Бот будет перезагружен \u2705", replyMarkup: KeyboardManager.buttonHideButtots);
+                    ServerControl.RestartBotService();
                     return;
                 }
                 #endregion Перезагрузки
@@ -485,7 +508,7 @@ namespace AdTorrBot.BotTelegram.Handler
                     await SqlMethods.DeleteProfileOther(uid);
                     await botClient.EditMessageTextAsync(AdminChat, idMessage,
                      "Профиль удален \u2705\r\n" +
-                     "Изменения вступят в силу после перезагрузки Torrserver."
+                     "Изменения вступят в силу после перезагрузки Torrserver через меню в боте"
                      , replyMarkup: KeyboardManager.buttonHideButtots);
                     return;
                 }
@@ -553,14 +576,14 @@ namespace AdTorrBot.BotTelegram.Handler
                     builder.AppendLine($"⏳ Окончание доступа: {(p.AccessEndDate.HasValue ? p.AccessEndDate.Value.ToString("dd.MM.yyyy HH:mm") : "Не задано")}");
                         if (remainingTime.HasValue && remainingTime.Value.TotalMilliseconds > 0)
                         {
-                            builder.AppendLine($"🕒 Осталось: {remainingTime.Value.Days} суток {remainingTime.Value.Hours} часов");
+                            builder.AppendLine($"🕒 Осталось: {remainingTime.Value.Days} дн. {remainingTime.Value.Hours} ч.");
                         }
                         else
                         {
                             builder.AppendLine($"🕒 Осталось: Не задано или доступ истёк");
                         }
                         builder.AppendLine($"/edit_profile_{uid.Replace("-", "_")}");
-                    builder.AppendLine($"После изменений,требуется перезагрузка Torrserver.");
+                    builder.AppendLine($"После изменений,требуется перезагрузка Torrserver.\r\nВ разделе бота \"Перезагрузки\"");
                         await botClient.EditMessageTextAsync(AdminChat, idMessage,
                           builder.ToString()
                        , replyMarkup: KeyboardManager.GetAccessControlOther(uid));
@@ -606,7 +629,7 @@ namespace AdTorrBot.BotTelegram.Handler
                     await botClient.EditMessageTextAsync(AdminChat, idMessage,
                      $"Новый пользователь сгенерирован ✅\r\n" +
                      $"🔐 Доступ дан на 24 часа по умолчанию.\r\n" + 
-                     $"Будет активен после перезагрузки Torrserver.\r\n" + 
+                     $"Будет активен после перезагрузки Torrserver через меню в боте\r\n" + 
                      $"/showlogpass_{login}_{password}\r\n" + 
                      $"/edit_profile_{uidNewProfile.Replace("-", "_")}"
                     , replyMarkup: KeyboardManager.buttonHideButtots);
@@ -634,6 +657,48 @@ namespace AdTorrBot.BotTelegram.Handler
                       $"ivanpetrov:j4jjkj4o4i433\r\n" +
                       $"\u2139 слева логин(max 20 симв.) : справа пароль(max 20 симв.)"
                       , replyMarkup: KeyboardManager.CreateNewProfileTorrserverUser());
+                    return;
+                }
+                if(callbackData == "clearOtherProfiles")
+                {
+                    await botClient.EditMessageTextAsync(AdminChat, idMessage,
+                        $"Вы собираетесь удалить все дополнительные профили.\r\n" +
+                        $"⚠️ Это действие необратимо!\r\n" +
+                        $"Подтвердите удаление или отмените.",
+                        replyMarkup: KeyboardManager.ConfirmDeleteAllOtherProfiles());
+                    return;
+                }
+
+                if (callbackData == "confirmDeleteAllOtherProfiles")
+                {
+                    var profilesExist = await SqlMethods.WithDbContextAsync(async db =>
+                        await db.Profiles.AnyAsync());
+
+                    if (!profilesExist)
+                    {
+                        await botClient.EditMessageTextAsync(AdminChat, idMessage,
+                            $"ℹ️ Дополнительных профилей для удаления не найдено.",
+                            replyMarkup: KeyboardManager.buttonHideButtots);
+                        return;
+                    }
+
+                    bool result = await SqlMethods.DeleteAllOtherProfiles();
+
+                    if (result)
+                    {
+                        await botClient.EditMessageTextAsync(AdminChat, idMessage,
+                            $"✅ Все дополнительные профили были удалены.\r\n" +
+                            $"Изменения вступят в силу после перезагрузки Torrserver через меню в боте.",
+                            replyMarkup: KeyboardManager.buttonHideButtots);
+                    }
+                    else
+                    {
+                        await botClient.EditMessageTextAsync(AdminChat, idMessage,
+                            $"⚠️ При удалении возникла ошибка.\r\n" +
+                            $"Подробности можно посмотреть в логах.",
+                            replyMarkup: KeyboardManager.buttonHideButtots);
+                    }
+
                     return;
                 }
 
@@ -691,7 +756,7 @@ namespace AdTorrBot.BotTelegram.Handler
                         "Управление главным профилем  Torrserver.\r\n" + setTorr.ToString()+"" +
                         "\r\nПри редактировании данных профиля,\r\n" +
                         "Torrserver перезагружается\n" +
-                        "❗При редактировании автосмены пароля,после нужно перезапустить сам сервер/бота .❗"
+                        "❗При редактировании автосмены пароля,после нужно перезапустить бота .❗"
                         , replyMarkup: KeyboardManager.GetControlTorrserver());
                     return;
                 }
@@ -843,17 +908,26 @@ namespace AdTorrBot.BotTelegram.Handler
 
         public static bool IsTextCommandBot(string command)
         {
-            HashSet<string> commands = new HashSet<string>()
-            {
-             "/start"
-             ,"🔐 Доступ"
-             ,"💾 Авто-бекап"
-             ,"⚙ Настройки"
-             ,"🔄 Перезагрузки"
-            };
-            return commands.Contains(command);
+            if (string.IsNullOrEmpty(command)) return false;
 
+            HashSet<string> commands = new HashSet<string>()
+                {
+                    "/start",
+                    "🔐 Доступ",
+                    "💾 Авто-бекап",
+                    "⚙ Настройки",
+                    "🔄 Перезагрузки",
+                    "📊 Статус"
+                };
+
+            if (commands.Contains(command))
+                return true;
+            if (command.StartsWith("/edit_profile_")) return true;
+            if (command.StartsWith("/showlogpass_")) return true;
+
+            return false;
         }
+
         public static bool IsCallbackQueryCommandBot(string command)
         {
             HashSet<string> commands = new HashSet<string>()
@@ -883,8 +957,8 @@ namespace AdTorrBot.BotTelegram.Handler
             ,"set_server_bbr"
 
             ,"restart_torrserver"
-            ,"restart_server"
-            
+            ,"restart_thisbot"
+            ,"restart_thisserver"
             ,"showTorrsetInfo"
             ,"resetTorrSetConfig"
             ,"setTorrSetConfig"
@@ -894,7 +968,9 @@ namespace AdTorrBot.BotTelegram.Handler
             ,"OtherProfiles"
             ,"MainProfile"
             ,"BackProfilesUersTorrserver"
-            ,"createNewProfile"
+            ,"createNewProfile",
+            "clearOtherProfiles",
+            "confirmDeleteAllOtherProfiles"
             ,"createAutoNewProfileOther"
             ,"auto_restart_torr"
             ,"down-auto-backup"

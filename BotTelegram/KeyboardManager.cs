@@ -338,10 +338,12 @@ namespace AdTorrBot.BotTelegram
             var butBackupMenu = new KeyboardButton("\uD83D\uDCBE Авто-бекап");
             var butRestartingMenu = new KeyboardButton("🔄 Перезагрузки");
             var butSettinsTorrserver = new KeyboardButton("⚙ Настройки");
+            var butStatus = new KeyboardButton("📊 Статус");
             return new ReplyKeyboardMarkup(new[]
             {
         new[] { butGuardMenu,butBackupMenu},
-        new[] { butRestartingMenu,butSettinsTorrserver }
+        new[] { butRestartingMenu,butSettinsTorrserver },
+        new[] { butStatus }
             })
             {
                 ResizeKeyboard = true 
@@ -436,12 +438,14 @@ namespace AdTorrBot.BotTelegram
         public static InlineKeyboardMarkup GetRestartingMain()
         {
             var restartTorrServer = InlineKeyboardButton.WithCallbackData("🔄 Перезапуск Torrserver", "restart_torrserver");
-           // var restartServer = InlineKeyboardButton.WithCallbackData("🔄 Перезапуск сервера", "restart_server");
+            var restartThisBot = InlineKeyboardButton.WithCallbackData("🔄 Перезапуск Бота", "restart_thisbot");
+            var restartServer = InlineKeyboardButton.WithCallbackData("🔄 Перезапуск Сервера(vps)", "restart_server");
             var autoRestartTorrServerMain = InlineKeyboardButton.WithCallbackData("⚙ Настроить ⏳ Torrserver", "auto_restart_torrserver");
             var inlineRestartingMain = new InlineKeyboardMarkup(new[]
             {
-               //  new[]{restartServer}
-                 new[]{restartTorrServer}
+                 new[]{restartServer}
+                ,new[]{ restartThisBot }
+                ,new[]{restartTorrServer}
                 ,new[]{autoRestartTorrServerMain}
                 ,new[]{buttonHideButtots}
 
@@ -613,6 +617,19 @@ namespace AdTorrBot.BotTelegram
                         new[] { buttonHideButtots }
             });
         }
+        public static InlineKeyboardMarkup ConfirmDeleteAllOtherProfiles()
+        {
+            var buttonConfirm = InlineKeyboardButton.WithCallbackData("✅ Да, удалить", "confirmDeleteAllOtherProfiles");
+            var buttonBack = InlineKeyboardButton.WithCallbackData("↩️ Назад", "0OtherProfilessort_active");
+
+            return new InlineKeyboardMarkup(new[]
+            {
+                new[] { buttonConfirm, buttonHideButtots },
+                new[] { buttonBack }
+            });
+        }
+
+
         public static InlineKeyboardMarkup CreateNewProfileTorrserverUser()
         {
           
@@ -627,6 +644,7 @@ namespace AdTorrBot.BotTelegram
         public static InlineKeyboardMarkup GetControlOtherProfilesTorrserver(int nextCount, int allCount, string sort)
         {
             var buttonCreateProfile = InlineKeyboardButton.WithCallbackData("👤 Создать профиль", "createNewProfile");
+            var buttonClearOtherProfiles = InlineKeyboardButton.WithCallbackData("🗑️ Очистить профили", "clearOtherProfiles");
             var buttonBackMenu = InlineKeyboardButton.WithCallbackData("↩️", "BackProfilesUersTorrserver");
             InlineKeyboardButton? buttonBack = null;
             InlineKeyboardButton? buttonNext = null;
@@ -659,7 +677,8 @@ namespace AdTorrBot.BotTelegram
             }
             var buttons = new List<InlineKeyboardButton[]>
                 {
-                    new[] { buttonCreateProfile }
+                    new[] { buttonCreateProfile },
+                    new[] { buttonClearOtherProfiles},
                 };
             if (sortButtons.Count > 0)
             {

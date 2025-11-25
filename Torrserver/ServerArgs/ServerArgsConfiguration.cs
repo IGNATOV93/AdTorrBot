@@ -143,6 +143,19 @@ namespace AdTorrBotTorrserverBot.Torrserver.ServerArgs
 
             return config;
         }
+        public static (string Protocol, int Port) GetProtocolAndPort(ServerArgsConfig config)
+        {
+            if (config.Ssl)
+            {
+                int port = config.SslPort ?? 443;
+                return ("https", port);
+            }
+            else
+            {
+                int port = config.Port ?? 8090;
+                return ("http", port);
+            }
+        }
 
 
 
