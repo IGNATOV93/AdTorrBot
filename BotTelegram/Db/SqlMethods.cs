@@ -571,6 +571,22 @@ namespace AdTorrBot.BotTelegram.Db
                 return true;
             });
         }
+        public static async Task<bool> DeleteAllOtherProfiles()
+        {
+            return await SqlMethods.WithDbContextAsync(async db =>
+            {
+                var profiles = await db.Profiles.ToListAsync();
+
+                if (!profiles.Any())
+                    return false;
+                db.RemoveRange(profiles);
+                await db.SaveChangesAsync();
+                await Torrserver.DeleteAllOtherProfilesKeepFirst();
+
+                return true;
+            });
+        }
+
         public static async Task<bool> DeleteProfileOther(string uid)
         {
             return await SqlMethods.WithDbContextAsync(async db =>

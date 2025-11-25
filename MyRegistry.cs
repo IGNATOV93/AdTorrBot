@@ -19,9 +19,9 @@ namespace AdTorrBotTorrserverBot
         {
             var logMessage = new System.Text.StringBuilder();
 
-            var isTorrserverAutoRunEnabled = await GetTorrserverAutoRunSettingAsync();
-            var isAutoBackupRunEnabled = await GetAutoBackupSettings();
-            bool isAutoChangePasswordEnabled = await IsAutoChangePasswordEnabled();
+            var isTorrserverAutoRunEnabled = await ServerInfo.GetTorrserverAutoRunSettingAsync();
+            var isAutoBackupRunEnabled = await ServerInfo.GetAutoBackupSettings();
+            bool isAutoChangePasswordEnabled = await ServerInfo.IsAutoChangePasswordEnabled();
 
             string torrserverStatus = isTorrserverAutoRunEnabled ? "🟢 Вкл" : "🔴 Выкл";
             string autoBackupStatus = isAutoBackupRunEnabled ? "🟢 Вкл" : "🔴 Выкл";
@@ -142,17 +142,6 @@ namespace AdTorrBotTorrserverBot
             return (baseHours, baseMinutes);
         }
 
-
-
-
-
-
-        private async Task<bool> IsAutoChangePasswordEnabled()
-        {
-            var settings = await LoadSettingsAsync();
-            return settings.IsActiveAutoChange;
-        }
-
         private async Task RunAutoBackupTask()
         {
             await TelegramBot.StartAutoBackup();
@@ -162,18 +151,6 @@ namespace AdTorrBotTorrserverBot
         {
             await Torrserver.Torrserver.RebootingTorrserver();
             await BotTelegram.TelegramBot.SendMessageToAdmin("✅ Torrserver успешно перезагружен!");
-        }
-
-        private async Task<bool> GetTorrserverAutoRunSettingAsync()
-        {
-            var settings = await SqlMethods.GetSettingsTorrserverBot();
-            return settings.IsTorrserverAutoRestart;
-        }
-
-        private async Task<bool> GetAutoBackupSettings()
-        {
-            var settings = await SqlMethods.GetSettingsTorrserverBot();
-            return settings.IsAutoBackupEnabled;
         }
 
         private static async Task<SettingsTorrserverBot> LoadSettingsAsync()

@@ -72,7 +72,7 @@ namespace AdTorrBot.BotTelegram.Handler
                             await botClient.SendTextMessageAsync(AdminChat,
                         $"Новый пользователь создан ✅\r\n" +
                         $"🔐 Доступ дан на 24 часа по умолчанию.\r\n" +
-                        $"Будет активен после перезагрузки Torrserver.\r\n" +
+                        $"Будет активен после перезагрузки Torrserver через меню в боте\r\n" +
                         $"/showlogpass_{login}_{password}\r\n" +
                         $"/edit_profile_{newProfile.UniqueId.ToString().Replace("-", "_")}"
                        , replyMarkup: KeyboardManager.GetDeleteThisMessage());
@@ -169,7 +169,7 @@ namespace AdTorrBot.BotTelegram.Handler
                             $"Новый пароль ➡️ {password} установлен ✅\r\n" +
                             $"Для профиля :\r\n" +
                             $"/edit_profile_{uid.Replace("-","_")}\r\n" +
-                            $"Изменения вступят после перезапуска Torrserver !",
+                            $"Изменения вступят после перезапуска Torrserver через меню в боте!",
                             replyMarkup: KeyboardManager.GetDeleteThisMessage());
                     }
                     else

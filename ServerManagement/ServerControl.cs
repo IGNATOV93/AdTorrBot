@@ -1,4 +1,6 @@
 ﻿using System.Diagnostics;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 
 namespace AdTorrBot.ServerManagement
 {
@@ -38,18 +40,63 @@ namespace AdTorrBot.ServerManagement
                 Console.WriteLine(ex.ToString());
             }
         }
-
-
+        public static void RestartBotService()
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "systemctl",
+                    Arguments = "restart adtorrbot.service",
+                    UseShellExecute = false
+                });
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+        }
         public static void RebootServer()
         {
             try
             {
-                Process.Start("reboot"); return;
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "sudo",
+                    Arguments = "reboot",
+                    UseShellExecute = false
+                });
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.ToString());
+                Console.WriteLine(e);
             }
         }
+        public static string GetPublicIp()
+        {
+            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (ni.OperationalStatus != OperationalStatus.Up)
+                    continue;
+
+                var ipProps = ni.GetIPProperties();
+                foreach (var addr in ipProps.UnicastAddresses)
+                {
+                    if (addr.Address.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        var ip = addr.Address.ToString();
+                        if (!ip.StartsWith("10.") &&
+                            !ip.StartsWith("192.168.") &&
+                            !ip.StartsWith("172.16.") &&
+                            !ip.StartsWith("127."))
+                        {
+                            return ip;
+                        }
+                    }
+                }
+            }
+            return "Не определен!";
+        }
+
     }
 }

@@ -37,16 +37,15 @@ namespace AdTorrBotTorrserverBot.BotTelegram
                 }
                 if (Message?.Text != null)
                 {
-                    ChatId = Message.Chat.Id.ToString();
-                    if (ChatId != AdminChat) { return;}
+                    ChatId = Message.Chat.Id.ToString();           
                     var textInputFlags = await SqlMethods.GetTextInputFlag();
                     if (ChatId==AdminChat&&textInputFlags.CheckAllBooleanFlags()) 
                      {  
                       await MessageHandler.HandleUpdate(update)
                       ;return;
                      }
-                    if (ChatId != AdminChat && !MessageHandler.IsTextCommandBot(InputText)) 
-                     { return; }
+                    if (ChatId != AdminChat) { return; }
+                    if (!MessageHandler.IsTextCommandBot(InputText)) { return; }
 
                     await MessageHandler.HandleUpdate(update);
                     return;

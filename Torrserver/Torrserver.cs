@@ -4,6 +4,9 @@ using Telegram.Bot;
 using Telegram.Bot.Types.ReplyMarkups;
 using AdTorrBot.BotTelegram.Db;
 using AdTorrBot.BotTelegram.Db.Model.TorrserverModel;
+using System.Net.Http.Headers;
+using System.Text.Json;
+using System.Text;
 
 
 
@@ -356,7 +359,7 @@ namespace AdTorrBotTorrserverBot.Torrserver
                         string updatedContent = "{" + string.Join(",", filteredAccounts) + "}";
                         await File.WriteAllTextAsync(filePathTorrserverDb, updatedContent);
 
-                        return true; // Удаление успешно
+                        return true; 
                     }
                 }
             }
@@ -365,9 +368,36 @@ namespace AdTorrBotTorrserverBot.Torrserver
                 Console.WriteLine($"Ошибка при удалении профиля: {ex.Message}");
             }
 
-            return false; // В случае ошибки
+            return false; 
         }
+        public static async Task<bool> DeleteAllOtherProfilesKeepFirst()
+        {
+            try
+            {
+                string content = await File.ReadAllTextAsync(filePathTorrserverDb);
+                content = content.Trim();
 
+                if (content.StartsWith("{") && content.EndsWith("}"))
+                {
+                    content = content.Substring(1, content.Length - 2);
+
+                    var accounts = content.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    var filteredAccounts = accounts.Take(1).ToList();
+
+                    string updatedContent = "{" + string.Join(",", filteredAccounts) + "}";
+                    await File.WriteAllTextAsync(filePathTorrserverDb, updatedContent);
+
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при удалении профилей: {ex.Message}");
+            }
+
+            return false;
+        }
 
 
         //Обловляем что у нас есть в конфиге пользователи с бд данными .
@@ -508,7 +538,7 @@ namespace AdTorrBotTorrserverBot.Torrserver
             return false; // В случае ошибки
         }
 
-        #endregion OtherProfiles
+        #endregion OtherProfiles      
     }
 
 }

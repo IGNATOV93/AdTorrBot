@@ -51,7 +51,7 @@ namespace AdTorrBot.BotTelegram.Db.Model.TorrserverModel
             builder.AppendLine($"⏳ Окончание доступа: {(AccessEndDate.HasValue ? AccessEndDate.Value.ToString("dd.MM.yyyy HH:mm") : "Не задано")}");
             if (remainingTime.HasValue && remainingTime.Value.TotalMilliseconds > 0)
             {
-                builder.AppendLine($"🕒 Осталось: {remainingTime.Value.Days} суток {remainingTime.Value.Hours} часов");
+                builder.AppendLine($"🕒 Осталось: {remainingTime.Value.Days} дн. {remainingTime.Value.Hours} ч.");
             }
             else
             {
